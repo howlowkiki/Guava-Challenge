@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guava Challenge</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #87CEEB;
+            user-select: none;
+        }
+
+        #game-area { position: relative; width: 100vw; height: 100vh; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
+            box-sizing: border-box; display: flex; justify-content: space-between;
+            color: white; font-size: 24px; font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); z-index: 10;
+        }
+
+        #input-container {
+            position: absolute; bottom: 30px; width: 100%; text-align: center; z-index: 20;
+        }
+
+        #answer-input {
+            font-size: 32px; padding: 10px 20px; border-radius: 30px;
+            border: 4px solid #fff; outline: none; background: rgba(255, 255, 255, 0.8);
+            text-align: center; width: 300px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            text-transform: lowercase;
+            ime-mode: disabled; /* 舊版瀏覽器嘗試停用輸入法 */
+        }
+
+        #continue-msg {
+            display: none; color: #FFFF00; font-size: 20px; font-weight: bold;
+            margin-top: 10px; text-shadow: 1px 1px 2px black;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .bubble {
+            position: absolute; background: white; padding: 15px 25px;
+            border-radius: 40px; border: 3px solid #4682B4;
+            font-size: 24px; font-weight: bold; color: #333;
+            box-shadow: 2px 5px 10px rgba(0,0,0,0.1); white-space: nowrap;
+            transition: background-color 0.3s, transform 0.2s;
+            transform: translateX(-50%);
+        }
+        
+        .bubble::after {
+            content: ''; position: absolute; bottom: -10px; left: 50%;
+            transform: translateX(-50%); border-width: 10px 10px 0;
+            border-style: solid; border-color: #4682B4 transparent transparent transparent;
+        }
+
+        .bubble.wrong {
+            background-color: #ff6b6b; color: white; border-color: #c0392b; z-index: 5;
+        }
+        
+        .bubble.wrong::after { border-color: #c0392b transparent transparent transparent; }
+
+        .answer-text {
+            display: block; font-size: 18px; color: #ffff00; margin-top: 5px; text-align: center;
+        }
+
+        /* 選單與對話框共用樣式 */
+        #menu-screen, #game-over-screen, #exit-confirm-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100; color: white;
+        }
+
+        /* 離開確認對話框特別樣式 */
+        #exit-confirm-modal { z-index: 200; background: rgba(0, 0, 0, 0.9); }
+
+        h1 { font-size: 60px; margin-bottom: 20px; color: #90EE90; text-shadow: 3px 3px 0 #000; }
+        
+        .btn {
+            padding: 15px 40px; margin: 10px; font-size: 24px; cursor: pointer;
+            border: none; border-radius: 50px; background: white; color: #333;
+            transition: transform 0.2s; font-weight: bold;
+        }
+        .btn:hover { transform: scale(1.1); background: #f0f0f0; }
+        .btn-easy { border-bottom: 5px solid #2ecc71; }
+        .btn-normal { border-bottom: 5px solid #f1c40f; }
+        .btn-hard { border-bottom: 5px solid #e74c3c; }
+        .btn-warn { border-bottom: 5px solid #ff4d4d; color: #d63031; }
+        .hidden { display: none !important; }
+
+        select {
+            padding: 10px 20px; font-size: 20px; border-radius: 10px; margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-area">
+        <div id="ui-layer">
+            <div>分數: <span id="score">0</span> / <span id="target-score-display">20000</span></div>
+            <div>模式: <span id="current-mode"></span></div>
+        </div>
+        
+        <div id="bubbles-container"></div>
+
+        <div id="input-container">
+            <input type="text" id="answer-input" placeholder="在此輸入單字..." 
+                   autofocus autocomplete="off" spellcheck="false" lang="en" inputmode="latin">
+            <div id="continue-msg">答錯了！請看正確答案，按下 Enter 繼續...</div>
+            <div style="color: #eee; margin-top: 5px; font-size: 20px; text-shadow: 1px 1px 0 #000;">按 ESC 放棄目前單字 | 按 Backspace (當空白時) 回主選單</div>
+        </div>
+    </div>
+
+    <div id="menu-screen">
+        <h1>Guava Challenge</h1>
+        <div style="margin-bottom: 15px;">
+            <label for="word-select" style="font-size: 24px;">選擇挑戰單字庫：</label>
+            <select id="word-select">
+                <option value="1200">國中必背 1200 單字</option>
+                <option value="2000">進階挑戰 2000 單字</option>
+            </select>
+        </div>
+        <p>請選擇挑戰難度：</p>
+        <button class="btn btn-easy" onclick="startGame('easy')">簡單 (緩慢)</button>
+        <button class="btn btn-normal" onclick="startGame('normal')">普通 (適中)</button>
+        <button class="btn btn-hard" onclick="startGame('hard')">困難 (快速)</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 id="end-title">恭喜過關!</h1>
+        <p id="end-score">最終分數: 20000</p>
+        <button class="btn" onclick="showMenu()">重新挑戰</button>
+    </div>
+
+    <div id="exit-confirm-modal" class="hidden">
+        <h1>要回到主選單嗎？</h1>
+        <p>目前的進度將會遺失。</p>
+        <div>
+            <button class="btn btn-warn" onclick="confirmExit(true)">是，離開</button>
+            <button class="btn" onclick="confirmExit(false)">否，繼續</button>
+        </div>
+    </div>
+
+    <script src="words.js"></script>
+    <script src="words1200.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
